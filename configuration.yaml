@@ -1,0 +1,174 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+
+
+influxdb:
+  host: a0d7b954-influxdb
+  port: 8086
+  database: homeassistant
+  username: homeassistant
+  password: geheim
+  max_retries: 3
+  default_measurement: state
+
+# nginx prox manager
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 134.94.224.0/24
+    - 134.94.180.0/22
+
+
+rest:
+## Rechnerraum
+  - authentication: basic
+    username: "admin"
+    password: "password"
+    scan_interval: 60
+    resource: http://134.94.224.69/values.xml
+    sensor:
+      - name: "Rechnerraum Temperatur"
+        value_template: "{{ value_json['root']['ch1']['aval'] }}"
+        device_class: temperature
+        unit_of_measurement: "°C"
+        unique_id: rechnerraum01
+      - name: "Rechnerraum Luftfeuchte"
+        value_template: "{{ value_json['root']['ch2']['aval'] }}"
+        device_class: humidity
+        unit_of_measurement: "%"
+        unique_id: rechnerraum02
+      - name: "Rechnerraum Taupunkt"
+        value_template: "{{ value_json['root']['ch3']['aval'] }}"
+        device_class: temperature
+        unit_of_measurement: "°C"
+        unique_id: rechnerraum03
+      - name: "Rechnerraum Luftdruck"
+        value_template: "{{ value_json['root']['ch4']['aval'] }}"
+        device_class: pressure
+        unit_of_measurement: "hPa"
+        unique_id: rechnerraum04
+
+# Büro ALLNET Schalter
+  - resource: "http://ikp107.ikp.kfa-juelich.de/xml/?mode=sensor"
+    sensor:
+      - name: "ALLNET_Büro_Leistung"
+        unique_id: allnet12345
+        value_template: "{% for idx, items in value_json.sensors.sensor | groupby('id') %}{% for item in items %}{% if item.id | int == 4 %}{{item.current}}{% endif %}{% endfor %}{% endfor %}"
+        unit_of_measurement: "W"
+      - name: "ALLNET_Büro_Energie"
+        unique_id: allnet12345A
+        value_template: "{% for idx, items in value_json.sensors.sensor | groupby('id') %}{% for item in items %}{% if item.id | int == 103 %}{{item.current}}{% endif %}{% endfor %}{% endfor %}"
+        unit_of_measurement: "kWh"
+
+
+  - resource: "http://134.94.224.238/xml/?mode=sensor&type=switch"
+    sensor:
+      - name: "ALLNET_lukas"
+        unique_id: allnet123456
+#        json_attributes_path: "$.sensors.sensor[6]"
+#        json_attributes:
+#          - "id"
+#          - "name"
+#          - "current"
+#          - "unit"
+        value_template: "{% for idx, items in value_json.sensors.sensor | groupby('id') %}{% for item in items %}{% if item.id | int == 107 %}{{item.current}}{% endif %}{% endfor %}{% endfor %}"
+        unit_of_measurement: "°C"
+      - name: "ALLNET_lufteinlass"
+        unique_id: allnet1234567
+#        json_attributes_path: "$.sensors.sensor[8]"
+#        json_attributes:
+#          - "id"
+#          - "name"
+#          - "current"
+#          - "unit"
+        value_template: "{% for idx, items in value_json.sensors.sensor | groupby('id') %}{% for item in items %}{% if item.id | int == 109 %}{{item.current}}{% endif %}{% endfor %}{% endfor %}"
+        unit_of_measurement: "°C"
+  - resource: https://www.hochwasserportal.nrw/lanuv/data/internet/stations/100/2825190000200/S/week.json
+    scan_interval: 900
+    sensor:
+      - name: "Stadion Jülich Pegel"
+        value_template: "{{ value_json[0].data[-2][1] | float }}"
+        device_class: distance
+        unit_of_measurement: "m"
+      - name: "Stadion Jülich Datum"
+        value_template: "{{ value_json[0].data[-2][0] | as_datetime }}"
+        device_class: timestamp
+  - resource: https://www.hochwasserportal.nrw/lanuv/data/internet/stations/100/2825190000200/index.json
+    sensor:
+      - name: "Stadion Jülich"
+        value_template: "{{ value_json.station_name }}"
+        json_attributes:
+            - "station_id"
+            - "station_no"
+            - "station_name"
+            - "site_no"
+            - "site_name"
+            - "station_latitude"
+            - "station_longitude"
+            - "station_carteasting"
+            - "station_cartnorthing"
+            - "object_type"
+            - "station_local_x"
+            - "station_local_y"
+            - "catchment_name"
+            - "BODY_RESPONSIBLE"
+            - "station_gauge_datum"
+            - "station_elevation"
+            - "CATCHMENT_SIZE"
+            - "WTO_OBJECT"
+            - "web_stationstyp"
+            - "WEB_STATYPE"
+            - "GAUGE_DATUM"
+            - "GWREF_DATUM"
+            - "DIST_TO_CONFL"
+            - "ObjectDescription"
+            - "LANUV_MHW"
+            - "LANUV_MNW"
+            - "LANUV_MW"
+            - "LANUV_Info_1"
+            - "LANUV_Info_2"
+            - "LANUV_Info_3"
+            - "LANUV_N7W"
+            - "LANUV_MN7W"
+            - "LANUV_HN7W"
+            - "INTERNET_AKTIV"
+            - "INTERNET_BEMERKUNG"
+            - "LANUV_Betr"
+            - "creationDateInMillis"
+
+
+scrape:
+  - resource: https://www.fz-juelich.de/de/gs/ueber-uns/meteo/aktuelle-wetterdaten/wetterdaten
+    scan_interval: 900
+    sensor:
+      - name: FZJ Luftdruck
+        unique_id: wetterdaten01
+        select: "td"
+        index: 1
+        device_class: pressure
+        unit_of_measurement: "hPa"
+        value_template: '{{ value | replace("hPa", "") | float }}'
+      - name: FZJ Temperatur
+        unique_id: wetterdaten02
+        select: "td"
+        index: 3
+        device_class: temperature
+        unit_of_measurement: "°C"
+        value_template: '{{ value | replace("°C", "") | float }}'
+      - name: FZJ Luftfeuchte
+        unique_id: wetterdaten03
+        select: "td"
+        index: 5
+        device_class: humidity
+        unit_of_measurement: "%"
+        value_template: '{{ value | replace("%", "") | float }}'
